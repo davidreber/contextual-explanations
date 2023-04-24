@@ -1,0 +1,132 @@
+\pdfoutput=1
+\documentclass{article}
+
+
+% alptex + small aesthetic tweaks + some extra math defs
+\input{preamble/preamble.tex}
+\input{preamble/preamble_math}
+\input{preamble/definitions_basic}
+
+% bibtex import + some code to strip away useless bib info (volume number, isbn, and the ilk), and to standardize capitalization
+% warning: the arxiv uses an outdated bibtex, which causes cryptic and frustrating upload errors 
+% easiest solution: install whatever current arxiv texlive is from ftp://tug.org/historic/systems/texlive/ (download the ISO) and compile using this versions pdflatex and bibtex
+% alternatively, look upon https://github.com/plk/biblatex/wiki/biblatex-and-the-arXiv and despair. 
+\input{preamble/minimalist_biblatex}
+
+\addbibresource{bibs/sensitivity}
+
+\crefformat{equation}{(#2#1#3)}
+\crefformat{figure}{Figure~#2#1#3}
+\crefname{example}{Example}{Examples}
+\crefname{lemma}{Lemma}{Lemmas}
+\crefname{cor}{Corollary}{Corollaries}
+\crefname{theorem}{Theorem}{Theorems}
+\crefname{assumption}{Assumption}{Assumptions}
+
+%********************************************************************
+% Extra definitions
+%********************************************************************
+\usepackage{enumitem} % tight enumerates
+\usepackage[separate-uncertainty=true,multi-part-units=single]{siunitx} % better table control
+
+\newcommand{\maxf}[1]{{\cellcolor[gray]{0.8}} #1}
+\global\long\def\embedding{\lambda}
+
+% Peter's grey box
+\declaretheoremstyle[
+%    postheadspace=\newline,
+spacebelow=\parsep,
+    spaceabove=\parsep,
+  mdframed={
+    backgroundcolor=gray!10!white,     % vv: weird spacing issue, so leaving transpartent for now
+    hidealllines=true, 
+    innertopmargin=8pt, 
+    innerbottommargin=4pt, 
+    skipabove=8pt,
+    skipbelow=10pt,
+    nobreak=true
+}
+]{grayboxed}
+\declaretheorem[style=grayboxed,name=Assumption]{gassumption}
+% \declaretheorem[style=plain]{auxtheorem}
+% \declaretheorem[style=grayboxed,sibling=auxtheorem]{algorithm}
+% \declaretheorem[style=grayboxed,name=Algorithm]{nalgorithm}
+\crefname{gassumption}{Assumption}{Assumptions}
+
+\usepackage{thm-restate}
+
+%********************************************************************
+% Dan Roy's commenting code
+%********************************************************************
+\usepackage{xcolor}
+\input{preamble/commenting.tex}
+%\input{preamble/myvruler.tex}
+%For submission, uncomment these lines to make all annotations render as blank.
+% \renewcommand{\LATER}[1]{}
+% \renewcommand{\fLATER}[1]{}
+% \renewcommand{\TBD}[1]{}
+% \renewcommand{\fTBD}[1]{}
+% \renewcommand{\PROBLEM}[1]{}
+% \renewcommand{\fPROBLEM}[1]{}
+% \renewcommand{\NA}[1]{#1}  %% Note, NA's pass through!
+
+% frontmatter
+\usepackage[affil-it]{authblk}
+
+\title{Contextualized Explanations via Bayesian Model-Extensions}
+\date{}
+\author[1]{David Reber}
+% \author[1,2]{Pierre Laplace}
+\affil[1]{University of Chicago}
+% \affil[2]{Ouija Statistical Institute}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Your abstract here
+\end{abstract}
+
+\section{Introduction}
+
+Suppose we have a model of reality's true data-generating process $M_R$. This could be a model that is only valid in the regime of the training data, and on a particular task: it doesn't need to be comprehensive of reality everywhere. 
+
+When we train a generative model to optimality over this context/task, it learns a model $M_L$ which is \emph{compatible} with some constraints induced by $M_R$.
+
+\begin{definition}
+  Two models $M$ and $M^\prime$ are said to be \emph{$C$-compatible} if they both respect the constraints in $C$. In this case we write $M \sim^C M^\prime$.
+\end{definition}
+
+\begin{definition}
+  Constraints can take many forms. For instance:
+  \begin{itemize}
+    \item Conditional independencies
+    \item symmetries / conservation laws
+    \item bounds on states (nonnegativity of quantities, etc)
+    \item conditional independencies of interventional distributions (if the training data contained a diverse set of environments, then the model should be invariant to interventions on the environment variables)
+  \end{itemize}
+\end{definition}
+
+\begin{example}{\textbf{Bayes Nets}}
+  Suppose $M_R$ consists of observable variables $V$ such that $P(V)$ factorizes according to a Bayes net $G$. Then $C$ will contain the conditional independeces induced by $G$. If $M_L$ is trained to optimality, it will inherit these conditional independencies.
+\end{example}
+
+However, constraints aren't enough to fully specify $M_L$, so there's a lot of freedom for $M_L$ to deviate from $M_R$. The question is, given two explanations $E_A$ and $E_B$ for the output behavior of a $M_L$, how do we decide which is more compatible with the learned model $M_L$?
+
+Let's associate our informal (natural language, etc) explanations $E_A$ and $E_B$ with formal models $M_A\sim^C M_R$ and $M_B\sim^C M_R$ and ask whether based on observed quantities, $M_L$ is more likely to be $M_A$ or $M_B$.
+
+$M_A$ and $M_B$ are two guesses for $M_L$, and based on a limited observation function $O(M)$ we want to assess a posterior estimate about whether $M_A$ or $M_B$ is the right guess for $M_L$, given that $M_L$, $M_A$, and $M_B$ are all $C$-compatible with $M_R$.
+
+\begin{definition}
+  Let $O(M)$ be a function that takes a model $M$ and returns a set of observations. Practically, $O(M)$ is whatever information about $M_L$ we can reliably extract using our interpretability tools. 
+  
+  The key is that if we can only infer the values of a few concepts, then we can only use those concepts to distinguish between $M_A$ and $M_B$.
+\end{definition}
+
+Assume $M_A$ and $M_B$ are both equally likely to be the true model $M_L$. Then we can compute the posterior probability that $M_L$ is $M_A$ given the observations $O(M_L)=x$, by using the likelihoods $P(O(M_L)=x|M_L=M_A)$ and $P(O(M_L)=x|M_L=M_B)$.
+
+If $O(M)$ simply reports the values of a few concepts, then these reduce to $P_A(x)$., that is, $P(x)$ in the model $M_A$.
+
+The more informative $O(M)$, the faster the convergence to $M_A$ or $M_B$; or on the flip side, if $O(M)$ is not informative enough, it may be possible to prove that $M_A$ and $M_B$ can't be distinguished.
+
+\end{document}
